@@ -36,9 +36,9 @@ def streamlit_app():
     if 'current_answer_index' not in st.session_state:
         st.session_state.current_answer_index = 0
     if 'ratings' not in st.session_state:
-        st.session_state.ratings = {q: pd.DataFrame(0, index=answers, columns=criteria) for q, answers in qa_dict.items()}
+        st.session_state.ratings = {q: {i: pd.DataFrame(0, index=criteria, columns=['Rating']) for i in range(len(qa_dict[q]))} for q in qa_dict}
     if 'highlighted_sentences' not in st.session_state:
-        st.session_state.highlighted_sentences = {q: {i: [] for i in range(len(answers))} for q, answers in qa_dict.items()}
+        st.session_state.highlighted_sentences = {q: {i: [] for i in range(len(qa_dict[q]))} for q in qa_dict}
 
     # Select a question
     question = st.selectbox("Choose a question:", list(qa_dict.keys()), key="question_select")
@@ -51,12 +51,13 @@ def streamlit_app():
     # Display the question and current answer
     st.write(f"**Question:** {question}")
     answers = qa_dict[question]
-    current_answer = answers[st.session_state.current_answer_index]
-    st.write(f"\n**Answer {st.session_state.current_answer_index + 1} of {len(answers)}:**")
+    current_answer_index = st.session_state.current_answer_index
+    current_answer = answers[current_answer_index]
+    st.write(f"\n**Answer {current_answer_index + 1} of {len(answers)}:**")
 
     # Split the answer into sentences and allow highlighting
     sentences = split_into_sentences(current_answer)
-    highlighted_sentences = st.session_state.highlighted_sentences[question][st.session_state.current_answer_index]
+    highlighted_sentences = st.session_state.highlighted_sentences[question][current_answer_index]
     
     for i, sentence in enumerate(sentences):
         is_highlighted = st.checkbox(sentence, value=i in highlighted_sentences, key=f"sentence_{i}")
@@ -68,47 +69,50 @@ def streamlit_app():
     # Display rating sliders for the current answer
     st.write("\n**Rate this answer:**")
     for criterion in criteria:
-        st.session_state.ratings[question].at[current_answer, criterion] = st.slider(
+        st.session_state.ratings[question][current_answer_index].at[criterion, 'Rating'] = st.slider(
             criterion,
             0, 10, 
-            int(st.session_state.ratings[question].at[current_answer, criterion]),
+            int(st.session_state.ratings[question][current_answer_index].at[criterion, 'Rating']),
             key=f"slider_{criterion}"
         )
 
     # Navigation buttons
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Previous Answer", disabled=st.session_state.current_answer_index == 0):
+        if st.button("Previous Answer", disabled=current_answer_index == 0):
             st.session_state.current_answer_index -= 1
             st.rerun()
     with col2:
-        if st.button("Next Answer", disabled=st.session_state.current_answer_index == len(answers) - 1):
+        if st.button("Next Answer", disabled=current_answer_index == len(answers) - 1):
             st.session_state.current_answer_index += 1
             st.rerun()
 
     # Button to calculate and display results
     if st.button("Show Results", key="show_results_button"):
         st.write("\n**Ratings Summary:**")
-        st.dataframe(st.session_state.ratings[question])
+        all_ratings = pd.concat([st.session_state.ratings[question][i] for i in range(len(answers))], axis=1)
+        all_ratings.columns = [f"Answer {i+1}" for i in range(len(answers))]
+        st.dataframe(all_ratings)
 
         # Calculate and display the average rating for each answer
-        average_ratings = st.session_state.ratings[question].mean(axis=1)
+        average_ratings = all_ratings.mean()
         st.write("\n**Average Ratings:**")
         st.dataframe(average_ratings)
 
         # Identify the best answer based on average rating
-        best_answer = average_ratings.idxmax()
-        st.write(f"\n**Best Answer:** Answer {answers.index(best_answer) + 1}")
-        st.write(f"**Average Rating:** {average_ratings[best_answer]:.2f}")
+        best_answer_index = average_ratings.idxmax()
+        st.write(f"\n**Best Answer:** {best_answer_index}")
+        st.write(f"**Average Rating:** {average_ratings[best_answer_index]:.2f}")
 
         # Display highlighted sentences for all answers
         st.write("\n**Highlighted Sentences:**")
         for i, answer in enumerate(answers):
             st.write(f"\nAnswer {i + 1}:")
             highlighted = st.session_state.highlighted_sentences[question][i]
+            answer_sentences = split_into_sentences(answer)
             if highlighted:
                 for idx in highlighted:
-                    st.write(f"- {sentences[idx]}")
+                    st.write(f"- {answer_sentences[idx]}")
             else:
                 st.write("No sentences highlighted.")
 
