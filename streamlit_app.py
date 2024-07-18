@@ -45,25 +45,23 @@ def streamlit_app():
     st.write(f"**Question:** {question}")
     answers = qa_dict[question]
 
-    # Create three columns for side-by-side answers
-    cols = st.columns(3)
-
-    for i, col in enumerate(cols):
-        with col:
-            st.write(f"\n**Answer {i + 1}:**")
-
+    for i, answer in enumerate(answers):
+        st.write(f"\n**Answer {i + 1}:**")
+        
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
             # Display the answer in a text area
-            current_answer = answers[i]
-            st.text_area(f"Highlight text by selecting it (Answer {i+1}):", current_answer, height=300, key=f"answer_text_{i}")
+            st.text_area(f"Answer text:", answer, height=200, key=f"answer_text_{i}")
             
-            # Button to capture highlighted text
-            if st.button(f"Capture Highlighted Text (Answer {i+1})"):
-                highlighted = st.session_state.highlighted_text[question][i]
-                st.session_state.highlighted_text[question][i] = st.experimental_get_query_params().get(f'highlight_{i}', [''])[0]
-                st.write("Highlighted text:", st.session_state.highlighted_text[question][i])
-
+            # Text input for highlighted text
+            highlighted = st.text_input(f"Highlighted text:", key=f"highlight_input_{i}")
+            if highlighted:
+                st.session_state.highlighted_text[question][i] = highlighted
+        
+        with col2:
             # Display rating sliders for the current answer
-            st.write("\n**Rate this answer:**")
+            st.write("**Rate this answer:**")
             for criterion in criteria:
                 st.session_state.ratings[question][i].at[criterion, 'Rating'] = st.slider(
                     criterion,
@@ -71,6 +69,8 @@ def streamlit_app():
                     int(st.session_state.ratings[question][i].at[criterion, 'Rating']),
                     key=f"slider_{criterion}_{i}"
                 )
+        
+        st.markdown("---")  # Add a horizontal line for separation
 
     # Button to calculate and display results
     if st.button("Show Results", key="show_results_button"):
@@ -98,26 +98,6 @@ def streamlit_app():
                 st.write(f"- {highlighted}")
             else:
                 st.write("No text highlighted.")
-
-    # Add JavaScript to capture selected text
-    st.markdown("""
-    <script>
-    document.addEventListener('selectionchange', function() {
-        let selection = window.getSelection().toString().trim();
-        if (selection) {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (document.activeElement.id.includes('answer_text_0')) {
-                urlParams.set('highlight_0', selection);
-            } else if (document.activeElement.id.includes('answer_text_1')) {
-                urlParams.set('highlight_1', selection);
-            } else if (document.activeElement.id.includes('answer_text_2')) {
-                urlParams.set('highlight_2', selection);
-            }
-            window.history.replaceState({}, '', `${location.pathname}?${urlParams}`);
-        }
-    });
-    </script>
-    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     streamlit_app()
