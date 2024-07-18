@@ -34,6 +34,8 @@ def streamlit_app():
         st.session_state.ratings = {q: {i: pd.DataFrame(0, index=criteria, columns=['Rating']) for i in range(len(qa_dict[q]))} for q in qa_dict}
     if 'highlighted_text' not in st.session_state:
         st.session_state.highlighted_text = {q: {i: "" for i in range(len(qa_dict[q]))} for q in qa_dict}
+    if 'preferred_answer' not in st.session_state:
+        st.session_state.preferred_answer = {q: None for q in qa_dict}
 
     # Select a question
     question = st.selectbox("Choose a question:", list(qa_dict.keys()), key="question_select")
@@ -74,6 +76,15 @@ def streamlit_app():
         
         st.markdown("---")  # Add a horizontal line for separation
 
+    # Add radio button for selecting preferred answer
+    preferred_answer = st.radio(
+        "Select your preferred answer:",
+        [f"Answer {i+1}" for i in range(len(answers))],
+        index=st.session_state.preferred_answer[question] if st.session_state.preferred_answer[question] is not None else 0,
+        key=f"preferred_answer_{question}"
+    )
+    st.session_state.preferred_answer[question] = int(preferred_answer.split()[-1]) - 1
+
     # Button to calculate and display results
     if st.button("Show Results", key="show_results_button"):
         st.write("\n**Ratings Summary:**")
@@ -88,8 +99,11 @@ def streamlit_app():
 
         # Identify the best answer based on average rating
         best_answer_index = average_ratings.idxmax()
-        st.write(f"\n**Best Answer:** {best_answer_index}")
+        st.write(f"\n**Best Answer (Based on Ratings):** {best_answer_index}")
         st.write(f"**Average Rating:** {average_ratings[best_answer_index]:.2f}")
+
+        # Display the user's preferred answer
+        st.write(f"\n**User's Preferred Answer:** Answer {st.session_state.preferred_answer[question] + 1}")
 
         # Display highlighted text for all answers
         st.write("\n**Highlighted Text:**")
