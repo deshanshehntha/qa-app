@@ -24,16 +24,6 @@ criteria = [
     "Creativity", "Efficiency", "Scalability", "Accessibility", "Novelty", "Overall Impact"
 ]
 
-def star_rating(label, key):
-    stars = "★★★★★★★★★★"
-    rating = st.select_slider(
-        label,
-        options=range(11),
-        format_func=lambda x: stars[:x] + "☆" * (10 - x),
-        key=key
-    )
-    return rating
-
 def streamlit_app():
     st.title("Q&A Evaluation App")
 
@@ -58,7 +48,7 @@ def streamlit_app():
     for i, answer in enumerate(answers):
         st.write(f"\n**Answer {i + 1}:**")
         
-        col1, col2, col3 = st.columns([2, 2, 2])
+        col1, col2 = st.columns([2, 3])
         
         with col1:
             # Display the answer in a text area
@@ -70,18 +60,17 @@ def streamlit_app():
                 st.session_state.highlighted_text[question][i] = highlighted
         
         with col2:
-            # Display star ratings for the first 6 criteria
+            # Display rating sliders for the current answer
             st.write("**Rate this answer:**")
-            for criterion in criteria[:6]:
-                rating = star_rating(criterion, f"{criterion}_{i}")
-                st.session_state.ratings[question][i].at[criterion, 'Rating'] = rating
-
-        with col3:
-            # Display star ratings for the remaining 5 criteria
-            st.write("\u200b")  # Add an invisible character to align with col2
-            for criterion in criteria[6:]:
-                rating = star_rating(criterion, f"{criterion}_{i}")
-                st.session_state.ratings[question][i].at[criterion, 'Rating'] = rating
+            criteria_col1, criteria_col2 = st.columns(2)
+            for j, criterion in enumerate(criteria):
+                with criteria_col1 if j < 6 else criteria_col2:
+                    st.session_state.ratings[question][i].at[criterion, 'Rating'] = st.slider(
+                        criterion,
+                        0, 10, 
+                        int(st.session_state.ratings[question][i].at[criterion, 'Rating']),
+                        key=f"slider_{criterion}_{i}"
+                    )
         
         st.markdown("---")  # Add a horizontal line for separation
 
