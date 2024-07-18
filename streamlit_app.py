@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import re
 
 # Define a dictionary of questions and more substantial answers
 qa_dict = {
@@ -30,8 +29,8 @@ def streamlit_app():
     # Initialize session state
     if 'current_question' not in st.session_state:
         st.session_state.current_question = list(qa_dict.keys())[0]
-    if 'current_answer_index' not in st.session_state:
-        st.session_state.current_answer_index = 0
+    if 'current_answer_indices' not in st.session_state:
+        st.session_state.current_answer_indices = [0, 1]
     if 'ratings' not in st.session_state:
         st.session_state.ratings = {q: {i: pd.DataFrame(0, index=criteria, columns=['Rating']) for i in range(len(qa_dict[q]))} for q in qa_dict}
     if 'highlighted_text' not in st.session_state:
@@ -43,44 +42,46 @@ def streamlit_app():
     # Update current question if changed
     if question != st.session_state.current_question:
         st.session_state.current_question = question
-        st.session_state.current_answer_index = 0
+        st.session_state.current_answer_indices = [0, 1]
 
-    # Display the question and current answer
     st.write(f"**Question:** {question}")
     answers = qa_dict[question]
-    current_answer_index = st.session_state.current_answer_index
-    current_answer = answers[current_answer_index]
-    st.write(f"\n**Answer {current_answer_index + 1} of {len(answers)}:**")
 
-    # Display the answer in a text area
-    st.text_area("Highlight text by selecting it:", current_answer, height=300, key="answer_text")
-    
-    # Button to capture highlighted text
-    if st.button("Capture Highlighted Text"):
-        highlighted = st.session_state.highlighted_text[question][current_answer_index]
-        st.session_state.highlighted_text[question][current_answer_index] = st.experimental_get_query_params().get('highlight', [''])[0]
-        st.write("Highlighted text:", st.session_state.highlighted_text[question][current_answer_index])
-
-    # Display rating sliders for the current answer
-    st.write("\n**Rate this answer:**")
-    for criterion in criteria:
-        st.session_state.ratings[question][current_answer_index].at[criterion, 'Rating'] = st.slider(
-            criterion,
-            0, 10, 
-            int(st.session_state.ratings[question][current_answer_index].at[criterion, 'Rating']),
-            key=f"slider_{criterion}"
-        )
-
-    # Navigation buttons
+    # Create two columns for side-by-side answers
     col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Previous Answer", disabled=current_answer_index == 0):
-            st.session_state.current_answer_index -= 1
-            st.rerun()
-    with col2:
-        if st.button("Next Answer", disabled=current_answer_index == len(answers) - 1):
-            st.session_state.current_answer_index += 1
-            st.rerun()
+
+    for i, col in enumerate([col1, col2]):
+        with col:
+            current_index = st.session_state.current_answer_indices[i]
+            st.write(f"\n**Answer {current_index + 1} of {len(answers)}:**")
+
+            # Display the answer in a text area
+            current_answer = answers[current_index]
+            st.text_area(f"Highlight text by selecting it (Answer {i+1}):", current_answer, height=300, key=f"answer_text_{i}")
+            
+            # Button to capture highlighted text
+            if st.button(f"Capture Highlighted Text (Answer {i+1})"):
+                highlighted = st.session_state.highlighted_text[question][current_index]
+                st.session_state.highlighted_text[question][current_index] = st.experimental_get_query_params().get(f'highlight_{i}', [''])[0]
+                st.write("Highlighted text:", st.session_state.highlighted_text[question][current_index])
+
+            # Display rating sliders for the current answer
+            st.write("\n**Rate this answer:**")
+            for criterion in criteria:
+                st.session_state.ratings[question][current_index].at[criterion, 'Rating'] = st.slider(
+                    criterion,
+                    0, 10, 
+                    int(st.session_state.ratings[question][current_index].at[criterion, 'Rating']),
+                    key=f"slider_{criterion}_{i}"
+                )
+
+            # Navigation buttons
+            if st.button(f"Previous Answer ({i+1})", disabled=current_index == 0, key=f"prev_{i}"):
+                st.session_state.current_answer_indices[i] = max(0, current_index - 1)
+                st.rerun()
+            if st.button(f"Next Answer ({i+1})", disabled=current_index == len(answers) - 1, key=f"next_{i}"):
+                st.session_state.current_answer_indices[i] = min(len(answers) - 1, current_index + 1)
+                st.rerun()
 
     # Button to calculate and display results
     if st.button("Show Results", key="show_results_button"):
@@ -116,7 +117,11 @@ def streamlit_app():
         let selection = window.getSelection().toString().trim();
         if (selection) {
             const urlParams = new URLSearchParams(window.location.search);
-            urlParams.set('highlight', selection);
+            if (document.activeElement.id.includes('answer_text_0')) {
+                urlParams.set('highlight_0', selection);
+            } else if (document.activeElement.id.includes('answer_text_1')) {
+                urlParams.set('highlight_1', selection);
+            }
             window.history.replaceState({}, '', `${location.pathname}?${urlParams}`);
         }
     });
