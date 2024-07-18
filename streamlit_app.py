@@ -24,9 +24,6 @@ criteria = [
     "Creativity", "Efficiency", "Scalability", "Accessibility", "Novelty", "Overall Impact"
 ]
 
-def split_into_sentences(text):
-    return re.findall(r'\w.+?[.!?](?=\s+|$)', text)
-
 def streamlit_app():
     st.title("Q&A Evaluation App")
 
@@ -37,8 +34,8 @@ def streamlit_app():
         st.session_state.current_answer_index = 0
     if 'ratings' not in st.session_state:
         st.session_state.ratings = {q: {i: pd.DataFrame(0, index=criteria, columns=['Rating']) for i in range(len(qa_dict[q]))} for q in qa_dict}
-    if 'highlighted_sentences' not in st.session_state:
-        st.session_state.highlighted_sentences = {q: {i: [] for i in range(len(qa_dict[q]))} for q in qa_dict}
+    if 'highlighted_text' not in st.session_state:
+        st.session_state.highlighted_text = {q: {i: "" for i in range(len(qa_dict[q]))} for q in qa_dict}
 
     # Select a question
     question = st.selectbox("Choose a question:", list(qa_dict.keys()), key="question_select")
@@ -55,16 +52,14 @@ def streamlit_app():
     current_answer = answers[current_answer_index]
     st.write(f"\n**Answer {current_answer_index + 1} of {len(answers)}:**")
 
-    # Split the answer into sentences and allow highlighting
-    sentences = split_into_sentences(current_answer)
-    highlighted_sentences = st.session_state.highlighted_sentences[question][current_answer_index]
+    # Display the answer in a text area
+    st.text_area("Highlight text by selecting it:", current_answer, height=300, key="answer_text")
     
-    for i, sentence in enumerate(sentences):
-        is_highlighted = st.checkbox(sentence, value=i in highlighted_sentences, key=f"sentence_{i}")
-        if is_highlighted and i not in highlighted_sentences:
-            highlighted_sentences.append(i)
-        elif not is_highlighted and i in highlighted_sentences:
-            highlighted_sentences.remove(i)
+    # Button to capture highlighted text
+    if st.button("Capture Highlighted Text"):
+        highlighted = st.session_state.highlighted_text[question][current_answer_index]
+        st.session_state.highlighted_text[question][current_answer_index] = st.experimental_get_query_params().get('highlight', [''])[0]
+        st.write("Highlighted text:", st.session_state.highlighted_text[question][current_answer_index])
 
     # Display rating sliders for the current answer
     st.write("\n**Rate this answer:**")
@@ -104,17 +99,29 @@ def streamlit_app():
         st.write(f"\n**Best Answer:** {best_answer_index}")
         st.write(f"**Average Rating:** {average_ratings[best_answer_index]:.2f}")
 
-        # Display highlighted sentences for all answers
-        st.write("\n**Highlighted Sentences:**")
+        # Display highlighted text for all answers
+        st.write("\n**Highlighted Text:**")
         for i, answer in enumerate(answers):
             st.write(f"\nAnswer {i + 1}:")
-            highlighted = st.session_state.highlighted_sentences[question][i]
-            answer_sentences = split_into_sentences(answer)
+            highlighted = st.session_state.highlighted_text[question][i]
             if highlighted:
-                for idx in highlighted:
-                    st.write(f"- {answer_sentences[idx]}")
+                st.write(f"- {highlighted}")
             else:
-                st.write("No sentences highlighted.")
+                st.write("No text highlighted.")
+
+    # Add JavaScript to capture selected text
+    st.markdown("""
+    <script>
+    document.addEventListener('selectionchange', function() {
+        let selection = window.getSelection().toString().trim();
+        if (selection) {
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.set('highlight', selection);
+            window.history.replaceState({}, '', `${location.pathname}?${urlParams}`);
+        }
+    });
+    </script>
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     streamlit_app()
