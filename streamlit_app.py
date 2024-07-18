@@ -25,10 +25,11 @@ criteria = [
 ]
 
 def star_rating(label, key):
+    stars = "★★★★★★★★★★"
     rating = st.select_slider(
         label,
         options=range(11),
-        format_func=lambda x: "★" * x + "☆" * (10 - x),
+        format_func=lambda x: stars[:x] + "☆" * (10 - x),
         key=key
     )
     return rating
