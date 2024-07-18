@@ -48,11 +48,11 @@ def streamlit_app():
     for i, answer in enumerate(answers):
         st.write(f"\n**Answer {i + 1}:**")
         
-        col1, col2 = st.columns([3, 1])
+        col1, col2 = st.columns([2, 3])
         
         with col1:
             # Display the answer in a text area
-            st.text_area(f"Answer text:", answer, height=200, key=f"answer_text_{i}")
+            st.text_area(f"Answer text:", answer, height=150, key=f"answer_text_{i}")
             
             # Text input for highlighted text
             highlighted = st.text_input(f"Highlighted text:", key=f"highlight_input_{i}")
@@ -62,13 +62,15 @@ def streamlit_app():
         with col2:
             # Display rating sliders for the current answer
             st.write("**Rate this answer:**")
-            for criterion in criteria:
-                st.session_state.ratings[question][i].at[criterion, 'Rating'] = st.slider(
-                    criterion,
-                    0, 10, 
-                    int(st.session_state.ratings[question][i].at[criterion, 'Rating']),
-                    key=f"slider_{criterion}_{i}"
-                )
+            criteria_col1, criteria_col2 = st.columns(2)
+            for j, criterion in enumerate(criteria):
+                with criteria_col1 if j < 6 else criteria_col2:
+                    st.session_state.ratings[question][i].at[criterion, 'Rating'] = st.slider(
+                        criterion,
+                        0, 10, 
+                        int(st.session_state.ratings[question][i].at[criterion, 'Rating']),
+                        key=f"slider_{criterion}_{i}"
+                    )
         
         st.markdown("---")  # Add a horizontal line for separation
 
